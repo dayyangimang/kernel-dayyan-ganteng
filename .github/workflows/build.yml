@@ -49,6 +49,10 @@ jobs:
         run: |
           make vendor/ginkgo-perf_defconfig
           scripts/config --set-val LITTLE_CPU_MASK 15
+          scripts/config --disable CONFIG_MODULE_SIG
+          scripts/config --disable CONFIG_MODULE_SIG_ALL
+          scripts/config --disable CONFIG_MODULE_SIG_FORCE
+          scripts/config --disable CONFIG_LTO_CLANG
           make olddefconfig
           make -j$(nproc) Image.gz-dtb dtbs
           ls -la arch/arm64/boot/
