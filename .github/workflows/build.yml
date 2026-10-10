@@ -24,7 +24,7 @@ jobs:
             bc bison flex libssl-dev libncurses5-dev \
             gcc-aarch64-linux-gnu g++-aarch64-linux-gnu \
             gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf \
-            clang llvm libelf-dev device-tree-compiler zip unzip cpio rsync
+            clang lld llvm libelf-dev device-tree-compiler zip unzip cpio rsync
 
       - name: Clone ArrowOS ginkgo kernel (arrow-13.0)
         run: |
@@ -36,6 +36,14 @@ jobs:
         env:
           ARCH: arm64
           SUBARCH: arm64
+          CC: clang
+          LD: ld.lld
+          AR: llvm-ar
+          NM: llvm-nm
+          OBJCOPY: llvm-objcopy
+          OBJDUMP: llvm-objdump
+          STRIP: llvm-strip
+          CLANG_TRIPLE: aarch64-linux-gnu-
           CROSS_COMPILE: aarch64-linux-gnu-
           CROSS_COMPILE_ARM32: arm-linux-gnueabihf-
         run: |
