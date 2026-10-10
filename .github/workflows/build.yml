@@ -8,7 +8,7 @@ permissions:
 
 jobs:
   build:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-22.04
     timeout-minutes: 120
 
     steps:
@@ -21,23 +21,26 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y \
-            bc bison flex libssl-dev make libncurses5-dev \
+            bc bison flex libssl-dev libncurses5-dev \
             gcc-aarch64-linux-gnu g++-aarch64-linux-gnu \
-            clang llvm libelf-dev device-tree-compiler zip unzip cpio
+            clang llvm libelf-dev device-tree-compiler zip unzip cpio rsync
 
       - name: Clone ArrowOS ginkgo kernel (arrow-13.0)
         run: |
           git clone --depth 1 -b arrow-13.0 \
             https://github.com/ArrowOS-Devices/android_kernel_xiaomi_ginkgo.git kernel_ginkgo
-          ls -la kernel_ginkgo/
+          echo "=== Available defconfigs ==="
+          ls kernel_ginkgo/arch/arm64/configs/
 
       - name: Build kernel
         working-directory: kernel_ginkgo
         env:
           ARCH: arm64
+          SUBARCH: arm64
           CROSS_COMPILE: aarch64-linux-gnu-
         run: |
           make ginkgo-stock_defconfig
+          make olddefconfig
           make -j$(nproc) Image.gz-dtb dtbs
           ls -la arch/arm64/boot/
 
@@ -45,28 +48,22 @@ jobs:
         run: |
           mkdir -p anykernel3
           cd anykernel3
-          # Cek zip ada di repo
-          if [ -f ../../void-ksun-v26.1-ginkgo-20260828-1630.zip ]; then
+          if [ -f ../void-ksun-v26.1-ginkgo-20260828-1630.zip ]; then
             echo "Extracting Void KSun AnyKernel3..."
-            unzip -o ../../void-ksun-v26.1-ginkgo-20260828-1630.zip \
+            unzip -o ../void-ksun-v26.1-ginkgo-20260828-1630.zip \
               anykernel.sh tools/ak3-core.sh tools/busybox tools/magiskboot tools/magiskpolicy \
               -d . || echo "unzip failed, using fallback"
           else
             echo "Void KSun zip NOT FOUND in repo root!"
-            ls -la ../../
+            ls -la ../
           fi
-          # Fallback
           if [ ! -f anykernel.sh ]; then
             echo "Using osm0sis AnyKernel3 fallback..."
-            git clone --depth 1 https://github.com/osm0sis/AnyKernel3 .
+            rm -rf /tmp/ak3 && git clone --depth 1 https://github.com/osm0sis/AnyKernel3 /tmp/ak3
+            cp -r /tmp/ak3/* /tmp/ak3/.* . 2>/dev/null || true
+            rm -rf .git
           fi
-          ls -la
-          # Copy kernel image
           cp ../../kernel_ginkgo/arch/arm64/boot/Image.gz-dtb .
-          # Copy dtbo
-          cp ../../kernel_ginkgo/arch/arm64/boot/dtbo.img . 2>/dev/null || echo "dtbo.img not found"
-          # Copy dtb
-          cp ../../kernel_ginkgo/arch/arm64/boot/dtb.img . 2>/dev/null || echo "dtb.img not found"
           ls -la
 
       - name: Package flashable ZIP
@@ -75,9 +72,8 @@ jobs:
           sed -i 's/device.name1=.*/device.name1=ginkgo/' anykernel.sh
           sed -i 's/device.name2=.*/device.name2=willow/' anykernel.sh
           sed -i 's/supported.versions=.*/supported.versions=10.0-16.0/' anykernel.sh
-          zip -r9 ../../ginkgo-test-kernel.zip . -x "*.git*" "*.md" "README*" "LICENSE"
-          cd ../..
-          ls -la ginkgo-test-kernel.zip
+          zip -r9 ../ginkgo-test-kernel.zip . -x "*.git*" "*.md" "README*" "LICENSE"
+          ls -la ../ginkgo-test-kernel.zip
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
