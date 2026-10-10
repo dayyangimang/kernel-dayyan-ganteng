@@ -30,7 +30,7 @@ jobs:
           git clone --depth 1 -b arrow-13.0 \
             https://github.com/ArrowOS-Devices/android_kernel_xiaomi_ginkgo.git kernel_ginkgo
           echo "=== Available defconfigs ==="
-          ls kernel_ginkgo/arch/arm64/configs/
+          ls kernel_ginkgo/arch/arm64/configs/vendor/
 
       - name: Build kernel
         working-directory: kernel_ginkgo
@@ -39,8 +39,15 @@ jobs:
           SUBARCH: arm64
           CROSS_COMPILE: aarch64-linux-gnu-
         run: |
-          make ginkgo-stock_defconfig
-          make olddefconfig
+          # Pakai defconfig yang lengkap (ginkgo-perf)
+          make vendor/ginkgo-perf_defconfig
+          # Pastikan LITTLE_CPU_MASK diset (4 LITTLE cores = mask 0b1111 = 15)
+          scripts/config --set-val LITTLE_CPU_MASK 15
+          # Lengkapi semua opsi baru
+          yes "" | make olddefconfig
+          # Verifikasi auto.conf ada
+          test -f include/config/auto.conf
+          # Compile
           make -j$(nproc) Image.gz-dtb dtbs
           ls -la arch/arm64/boot/
 
@@ -60,7 +67,7 @@ jobs:
           if [ ! -f anykernel.sh ]; then
             echo "Using osm0sis AnyKernel3 fallback..."
             rm -rf /tmp/ak3 && git clone --depth 1 https://github.com/osm0sis/AnyKernel3 /tmp/ak3
-            cp -r /tmp/ak3/* /tmp/ak3/.* . 2>/dev/null || true
+            cp -r /tmp/ak3/* . 2>/dev/null || true
             rm -rf .git
           fi
           cp ../../kernel_ginkgo/arch/arm64/boot/Image.gz-dtb .
