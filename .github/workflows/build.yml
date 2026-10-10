@@ -29,6 +29,7 @@ jobs:
         run: |
           git clone --depth 1 -b arrow-13.0 \
             https://github.com/ArrowOS-Devices/android_kernel_xiaomi_ginkgo.git kernel_ginkgo
+          ls -la kernel_ginkgo/
 
       - name: Build kernel
         working-directory: kernel_ginkgo
@@ -38,26 +39,35 @@ jobs:
         run: |
           make ginkgo-stock_defconfig
           make -j$(nproc) Image.gz-dtb dtbs
+          ls -la arch/arm64/boot/
 
       - name: Prepare AnyKernel3 (Void KSun)
         run: |
           mkdir -p anykernel3
           cd anykernel3
-          # Extract from uploaded zip in repo
-          unzip -o ../void-ksun-v26.1-ginkgo-20260828-1630.zip \
-            anykernel.sh tools/ak3-core.sh tools/busybox tools/magiskboot tools/magiskpolicy \
-            -d . 2>/dev/null || true
-          # Fallback to osm0sis AnyKernel3 if extraction failed
+          # Cek zip ada di repo
+          if [ -f ../../void-ksun-v26.1-ginkgo-20260828-1630.zip ]; then
+            echo "Extracting Void KSun AnyKernel3..."
+            unzip -o ../../void-ksun-v26.1-ginkgo-20260828-1630.zip \
+              anykernel.sh tools/ak3-core.sh tools/busybox tools/magiskboot tools/magiskpolicy \
+              -d . || echo "unzip failed, using fallback"
+          else
+            echo "Void KSun zip NOT FOUND in repo root!"
+            ls -la ../../
+          fi
+          # Fallback
           if [ ! -f anykernel.sh ]; then
             echo "Using osm0sis AnyKernel3 fallback..."
             git clone --depth 1 https://github.com/osm0sis/AnyKernel3 .
           fi
+          ls -la
           # Copy kernel image
-          cp ../kernel_ginkgo/arch/arm64/boot/Image.gz-dtb .
+          cp ../../kernel_ginkgo/arch/arm64/boot/Image.gz-dtb .
           # Copy dtbo
-          cp ../kernel_ginkgo/arch/arm64/boot/dtbo.img . 2>/dev/null || true
+          cp ../../kernel_ginkgo/arch/arm64/boot/dtbo.img . 2>/dev/null || echo "dtbo.img not found"
           # Copy dtb
-          cp ../kernel_ginkgo/arch/arm64/boot/dtb.img . 2>/dev/null || true
+          cp ../../kernel_ginkgo/arch/arm64/boot/dtb.img . 2>/dev/null || echo "dtb.img not found"
+          ls -la
 
       - name: Package flashable ZIP
         run: |
@@ -65,8 +75,8 @@ jobs:
           sed -i 's/device.name1=.*/device.name1=ginkgo/' anykernel.sh
           sed -i 's/device.name2=.*/device.name2=willow/' anykernel.sh
           sed -i 's/supported.versions=.*/supported.versions=10.0-16.0/' anykernel.sh
-          zip -r9 ../ginkgo-test-kernel.zip . -x "*.git*" "*.md" "README*" "LICENSE"
-          cd ..
+          zip -r9 ../../ginkgo-test-kernel.zip . -x "*.git*" "*.md" "README*" "LICENSE"
+          cd ../..
           ls -la ginkgo-test-kernel.zip
 
       - name: Upload artifact
