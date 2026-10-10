@@ -46,6 +46,7 @@ jobs:
           CLANG_TRIPLE: aarch64-linux-gnu-
           CROSS_COMPILE: aarch64-linux-gnu-
           CROSS_COMPILE_ARM32: arm-linux-gnueabihf-
+          HOSTLD: ld.lld
         run: |
           make vendor/ginkgo-perf_defconfig
           scripts/config --set-val LITTLE_CPU_MASK 15
@@ -53,8 +54,9 @@ jobs:
           scripts/config --disable CONFIG_MODULE_SIG_ALL
           scripts/config --disable CONFIG_MODULE_SIG_FORCE
           scripts/config --disable CONFIG_LTO_CLANG
+          scripts/config --disable CONFIG_LLVM_POLLY
           make olddefconfig
-          make -j$(nproc) Image.gz-dtb dtbs
+          make LD=ld.lld -j$(nproc) Image.gz-dtb dtbs
           ls -la arch/arm64/boot/
 
       - name: Prepare AnyKernel3 (Void KSun)
