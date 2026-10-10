@@ -1,18 +1,76 @@
-name: Test GitHub Actions
+name: Build ginkgo test kernel
 
 on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
-  test:
+  build:
     runs-on: ubuntu-24.04
+    timeout-minutes: 120
 
     steps:
-      - name: Check runner
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install build deps
         run: |
-          echo "GitHub Actions aktif"
-          uname -a
-          nproc
+          sudo apt-get update
+          sudo apt-get install -y \
+            bc bison flex libssl-dev make libncurses5-dev \
+            gcc-aarch64-linux-gnu g++-aarch64-linux-gnu \
+            clang llvm libelf-dev dtc zip unzip cpio
+
+      - name: Clone ArrowOS ginkgo kernel (arrow-13.0)
+        run: |
+          git clone --depth 1 -b arrow-13.0 \
+            https://github.com/ArrowOS-Devices/android_kernel_xiaomi_ginkgo.git kernel_ginkgo
+
+      - name: Build kernel
+        working-directory: kernel_ginkgo
+        env:
+          CROSS_COMPILE: aarch64-linux-gnu-
+          ARCH: arm64
+        run: |
+          make ginkgo-stock_defconfig
+          make -j$(nproc) Image.gz-dtb dtbs
+
+      - name: Prepare AnyKernel3 (Void KSun)
+        run: |
+          mkdir -p anykernel3
+          cd anykernel3
+          # Extract from uploaded zip in repo
+          unzip -o ../void-ksun-v26.1-ginkgo-20260828-1630.zip \
+            anykernel.sh tools/ak3-core.sh tools/busybox tools/magiskboot tools/magiskpolicy \
+            -d . 2>/dev/null || true
+          # Fallback to osm0sis AnyKernel3 if extraction failed
+          if [ ! -f anykernel.sh ]; then
+            echo "Using osm0sis AnyKernel3 fallback..."
+            git clone --depth 1 https://github.com/osm0sis/AnyKernel3 .
+          fi
+          # Copy kernel image
+          cp ../kernel_ginkgo/arch/arm64/boot/Image.gz-dtb .
+          # Copy dtbo
+          cp ../kernel_ginkgo/arch/arm64/boot/dtbo.img . 2>/dev/null || true
+          # Copy dtb
+          cp ../kernel_ginkgo/arch/arm64/boot/dtb.img . 2>/dev/null || true
+
+      - name: Package flashable ZIP
+        run: |
+          cd anykernel3
+          sed -i 's/device.name1=.*/device.name1=ginkgo/' anykernel.sh
+          sed -i 's/device.name2=.*/device.name2=willow/' anykernel.sh
+          sed -i 's/supported.versions=.*/supported.versions=10.0-16.0/' anykernel.sh
+          zip -r9 ../ginkgo-test-kernel.zip . -x "*.git*" "*.md" "README*" "LICENSE"
+          cd ..
+          ls -la ginkgo-test-kernel.zip
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ginkgo-test-kernel
+          path: ginkgo-test-kernel.zip
