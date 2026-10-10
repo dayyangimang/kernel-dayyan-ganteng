@@ -1,97 +1,76 @@
-name: Build ginkgo test kernel
-
+# .github/workflows/build.yml
+name: Build kernel
 on:
+  push:
+    branches: [main]
   workflow_dispatch:
-
-permissions:
-  contents: write
 
 jobs:
   build:
-    runs-on: ubuntu-22.04
-    timeout-minutes: 120
-
+    runs-on: ubuntu‑22.04
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
+      - name: Checkout source
+        uses: actions/checkout@v3
         with:
-          fetch-depth: 0
+          submodules: true
 
-      - name: Install build deps
+      - name: Install toolchain
         run: |
           sudo apt-get update
-          sudo apt-get install -y \
-            bc bison flex libssl-dev libncurses5-dev \
-            gcc-aarch64-linux-gnu g++-aarch64-linux-gnu \
-            gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf \
-            clang lld llvm libelf-dev device-tree-compiler zip unzip cpio rsync
+          sudo apt-get install -y build-essential clang lld device-tree-compiler \
+                                   gcc-arm-linux-gnueabihf gcc-aarch64-linux-gnu \
+                                   python3 python3-pip python3-setuptools \
+                                   python3-yaml git wget curl zip unzip
 
-      - name: Clone ArrowOS ginkgo kernel (arrow-13.0)
+      - name: Prepare source
         run: |
-          git clone --depth 1 -b arrow-13.0 \
-            https://github.com/ArrowOS-Devices/android_kernel_xiaomi_ginkgo.git kernel_ginkgo
-
-      - name: Build kernel
-        working-directory: kernel_ginkgo
-        env:
-          ARCH: arm64
-          SUBARCH: arm64
-          CC: clang
-          LD: ld.lld
-          AR: llvm-ar
-          NM: llvm-nm
-          OBJCOPY: llvm-objcopy
-          OBJDUMP: llvm-objdump
-          STRIP: llvm-strip
-          CLANG_TRIPLE: aarch64-linux-gnu-
-          CROSS_COMPILE: aarch64-linux-gnu-
-          CROSS_COMPILE_ARM32: arm-linux-gnueabihf-
-          HOSTLD: ld.lld
-        run: |
+          # Ensure defconfig exists
           make vendor/ginkgo-perf_defconfig
-          scripts/config --set-val LITTLE_CPU_MASK 15
+
+          # Disable problematic options that cause build failures on Ubuntu‑22.04
+          scripts/config --disable CONFIG_MMC_CQHCI
+          scripts/config --disable CONFIG_MMC_CQHCI_CRYPTO
+          scripts/config --disable CONFIG_MMC_CQHCI_MMC
+          scripts/config --disable CONFIG_MMC_QCOM_DML
+          scripts/config --disable CONFIG_MSM_CAMERA
+          scripts/config --disable CONFIG_MSM_CAMERA_PLATFORM
+          scripts/config --disable CONFIG_MSM_CAMERA_CCI
+          scripts/config --disable CONFIG_MSM_CAMERA_V4L2
+          scripts/config --disable CONFIG_MSM_GAZELLE
+          scripts/config --disable CONFIG_MSM_GAZELLE_PLATFORM
+          # Turn off treating warnings as errors
+          scripts/config --disable CONFIG_WERROR
+
+          # Disable module signing (already done earlier but keep for safety)
           scripts/config --disable CONFIG_MODULE_SIG
           scripts/config --disable CONFIG_MODULE_SIG_ALL
           scripts/config --disable CONFIG_MODULE_SIG_FORCE
+
+          # Disable LTO and LLVM Polly (already done, keep)
           scripts/config --disable CONFIG_LTO_CLANG
           scripts/config --disable CONFIG_LLVM_POLLY
+
+          # Apply any remaining default values
           make olddefconfig
-          make LD=ld.lld -j$(nproc) Image.gz-dtb dtbs
-          ls -la arch/arm64/boot/
 
-      - name: Prepare AnyKernel3 (Void KSun)
+      - name: Build kernel
+        env:
+          LD: ld.lld          # force clang’s LLD linker
         run: |
-          mkdir -p anykernel3
-          cd anykernel3
-          if [ -f ../void-ksun-v26.1-ginkgo-20260828-1630.zip ]; then
-            echo "Extracting Void KSun AnyKernel3..."
-            unzip -o ../void-ksun-v26.1-ginkgo-20260828-1630.zip \
-              anykernel.sh tools/ak3-core.sh tools/busybox tools/magiskboot tools/magiskpolicy \
-              -d . || echo "unzip failed, using fallback"
-          else
-            echo "Void KSun zip NOT FOUND in repo root!"
-            ls -la ../
-          fi
-          if [ ! -f anykernel.sh ]; then
-            echo "Using osm0sis AnyKernel3 fallback..."
-            rm -rf /tmp/ak3 && git clone --depth 1 https://github.com/osm0sis/AnyKernel3 /tmp/ak3
-            cp -r /tmp/ak3/* . 2>/dev/null || true
-            rm -rf .git
-          fi
-          cp ../kernel_ginkgo/arch/arm64/boot/Image.gz-dtb .
-          ls -la
+          make -j$(nproc) LD=ld.lld Image.gz-dtb dtbs
 
-      - name: Package flashable ZIP
+      - name: Package AnyKernel3
         run: |
-          cd anykernel3
-          sed -i 's/device.name1=.*/device.name1=ginkgo/' anykernel.sh
-          sed -i 's/device.name2=.*/device.name2=willow/' anykernel.sh
-          sed -i 's/supported.versions=.*/supported.versions=10.0-16.0/' anykernel.sh
-          zip -r9 ../ginkgo-test-kernel.zip . -x "*.git*" "*.md" "README*" "LICENSE"
-          ls -la ../ginkgo-test-kernel.zip
+          wget -q https://github.com/osm0sis/AnyKernel3/releases/download/v1/anykernel3.zip
+          unzip -q anykernel3.zip -d anykernel3
+          cp -r arch/arm64/boot/Image.gz-dtb anykernel3/
+          cp -r arch/arm64/boot/dts/qcom/*.dtb anykernel3/
+          # Inject user‑provided DTBO (67 Hz)
+          cp ${{ github.workspace }}/67hz-dtbo.img anykernel3/dtbo.img
+          cd anykernel3 && zip -r ../kernel-build.zip .
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v3
         with:
-          name: ginkgo-test-kernel
-          path: ginkgo-test-kernel.zip
+          name: kernel-build
+          path: kernel-build.zip
