@@ -50,10 +50,10 @@ jobs:
           scripts/config --disable CONFIG_LTO_CLANG
           scripts/config --disable CONFIG_LLVM_POLLY
 
-          # Cegah prompt interaktif CONFIG_THERMAL_SWITCH
           scripts/config --disable CONFIG_THERMAL_SWITCH
+          scripts/config --enable CONFIG_LD_LLD
+          scripts/config --disable CONFIG_LD_BFD
 
-          # Update konfigurasi tanpa input interaktif
           make ARCH=arm64 silentoldconfig
 
       - name: Build kernel
