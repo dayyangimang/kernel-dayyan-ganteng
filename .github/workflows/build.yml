@@ -53,6 +53,7 @@ jobs:
           scripts/config --disable CONFIG_THERMAL_SWITCH
           scripts/config --enable CONFIG_LD_LLD
           scripts/config --disable CONFIG_LD_BFD
+          scripts/config --disable CONFIG_RANDOMIZE_MODULE_REGION_FULL
 
           make ARCH=arm64 silentoldconfig
 
