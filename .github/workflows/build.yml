@@ -43,6 +43,11 @@ jobs:
           scripts/config --disable CONFIG_MSM_GAZELLE
           scripts/config --disable CONFIG_MSM_GAZELLE_PLATFORM
 
+          scripts/config --disable CONFIG_MEDIA_SUPPORT
+          scripts/config --disable CONFIG_SOUND
+          scripts/config --disable CONFIG_SND
+          scripts/config --disable CONFIG_SND_SOC
+
           scripts/config --disable CONFIG_WERROR
           scripts/config --disable CONFIG_MODULE_SIG
           scripts/config --disable CONFIG_MODULE_SIG_ALL
