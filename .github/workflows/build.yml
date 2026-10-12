@@ -26,7 +26,7 @@ jobs:
       - name: Prepare source
         working-directory: kernel
         run: |
-          make vendor/ginkgo-perf_defconfig
+          make ARCH=arm64 vendor/ginkgo-perf_defconfig
           scripts/config --disable CONFIG_MMC_CQHCI
           scripts/config --disable CONFIG_MMC_CQHCI_CRYPTO
           scripts/config --disable CONFIG_MMC_QCOM_DML
@@ -48,6 +48,9 @@ jobs:
         working-directory: kernel
         env:
           LD: ld.lld
+          ARCH: arm64
+          CROSS_COMPILE: aarch64-linux-gnu-
+          CROSS_COMPILE_ARM32: arm-linux-gnueabihf-
         run: |
           make -j$(nproc) LD=ld.lld Image.gz-dtb dtbs
 
