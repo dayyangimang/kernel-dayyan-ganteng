@@ -40,8 +40,11 @@ jobs:
         working-directory: kernel
         env:
           ARCH: arm64
+          CC: clang
+          LD: ld.lld
           CROSS_COMPILE: aarch64-linux-gnu-
           CROSS_COMPILE_ARM32: arm-linux-gnueabihf-
+          CLANG_TRIPLE: aarch64-linux-gnu-
         run: |
           make -j$(nproc) KCFLAGS=-Wno-error Image.gz-dtb dtbs
 
