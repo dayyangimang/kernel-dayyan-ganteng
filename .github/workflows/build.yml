@@ -1,5 +1,4 @@
 name: Build kernel
-
 on:
   push:
     branches: [main]
@@ -8,7 +7,6 @@ on:
 jobs:
   build:
     runs-on: ubuntu-22.04
-
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
@@ -17,82 +15,44 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y build-essential clang lld device-tree-compiler \
-            gcc-arm-linux-gnueabihf gcc-aarch64-linux-gnu \
-            python3 python3-pip python3-setuptools \
-            python3-yaml git wget curl zip unzip
+                                   gcc-arm-linux-gnueabihf gcc-aarch64-linux-gnu \
+                                   python3 python3-pip python3-setuptools \
+                                   python3-yaml git wget curl zip unzip
 
       - name: Clone kernel source
         run: |
-          git clone --depth=1 -b arrow-13.0 \
-            https://github.com/ArrowOS-Devices/android_kernel_xiaomi_ginkgo \
-            kernel
+          git clone --depth=1 -b arrow-13.0 https://github.com/ArrowOS-Devices/android_kernel_xiaomi_ginkgo kernel
 
       - name: Prepare source
         working-directory: kernel
         run: |
+          # Fix broken upstream include: angle brackets omit current source dir.
+          sed -i 's|#include <../base/base.h>|#include "../base/base.h"|' drivers/thermal/thermal_core.c
+          # Old vendor makefiles force -Werror; GCC 11 finds legacy warnings.
+          find . -type f \( -name Makefile -o -name Kbuild \) -exec sed -i 's/-Werror//g' {} +
           make ARCH=arm64 vendor/ginkgo-perf_defconfig
-
-          scripts/config --disable CONFIG_MMC_CQHCI
-          scripts/config --disable CONFIG_MMC_CQHCI_CRYPTO
-          scripts/config --disable CONFIG_MMC_QCOM_DML
-
-          scripts/config --disable CONFIG_MSM_CAMERA
-          scripts/config --disable CONFIG_MSM_CAMERA_PLATFORM
-          scripts/config --disable CONFIG_MSM_CAMERA_CCI
-          scripts/config --disable CONFIG_MSM_CAMERA_V4L2
-          scripts/config --disable CONFIG_MSM_GAZELLE
-          scripts/config --disable CONFIG_MSM_GAZELLE_PLATFORM
-
-          scripts/config --disable CONFIG_MEDIA_SUPPORT
-          scripts/config --disable CONFIG_SOUND
-          scripts/config --disable CONFIG_SND
-          scripts/config --disable CONFIG_SND_SOC
-
           scripts/config --disable CONFIG_WERROR
-          scripts/config --disable CONFIG_MODULE_SIG
-          scripts/config --disable CONFIG_MODULE_SIG_ALL
-          scripts/config --disable CONFIG_MODULE_SIG_FORCE
-          scripts/config --disable CONFIG_LTO_CLANG
-          scripts/config --disable CONFIG_LLVM_POLLY
-
-          scripts/config --disable CONFIG_THERMAL_SWITCH
-          scripts/config --enable CONFIG_LD_LLD
-          scripts/config --disable CONFIG_LD_BFD
-          scripts/config --disable CONFIG_RANDOMIZE_MODULE_REGION_FULL
-
-          make ARCH=arm64 silentoldconfig
+          scripts/config --disable CONFIG_DEBUG_INFO
+          # Accept defaults for any newer Kconfig symbols without interactive prompts.
+          make ARCH=arm64 olddefconfig
 
       - name: Build kernel
         working-directory: kernel
         env:
           ARCH: arm64
-          LD: ld.lld
           CROSS_COMPILE: aarch64-linux-gnu-
           CROSS_COMPILE_ARM32: arm-linux-gnueabihf-
         run: |
-          make -j"$(nproc)" LD=ld.lld Image.gz-dtb dtbs
+          make -j$(nproc) KCFLAGS=-Wno-error Image.gz-dtb dtbs
 
       - name: Package AnyKernel3
         run: |
-          wget -q \
-            https://github.com/osm0sis/AnyKernel3/releases/download/v1/anykernel3.zip
-
+          wget -q https://github.com/osm0sis/AnyKernel3/releases/download/v1/anykernel3.zip
           unzip -q anykernel3.zip -d anykernel3
-
           cp kernel/arch/arm64/boot/Image.gz-dtb anykernel3/
-
           cp kernel/arch/arm64/boot/dts/qcom/*.dtb anykernel3/ || true
-
-          if [ -f 67Hz-dtbo.img ]; then
-            cp 67Hz-dtbo.img anykernel3/dtbo.img
-          elif [ -f 67hz-dtbo.img ]; then
-            cp 67hz-dtbo.img anykernel3/dtbo.img
-          else
-            echo "DTBO file tidak ditemukan"
-          fi
-
-          cd anykernel3
-          zip -r ../kernel-build.zip .
+          cp 67hz-dtbo.img anykernel3/dtbo.img || echo "DTBO file tidak ditemukan"
+          cd anykernel3 && zip -r ../kernel-build.zip .
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
