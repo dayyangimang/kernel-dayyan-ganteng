@@ -33,6 +33,7 @@ jobs:
           make ARCH=arm64 vendor/ginkgo-perf_defconfig
           scripts/config --disable CONFIG_WERROR
           scripts/config --disable CONFIG_DEBUG_INFO
+          scripts/config --disable CONFIG_CC_STACKPROTECTOR_STRONG
           # Accept defaults for any newer Kconfig symbols without interactive prompts.
           make ARCH=arm64 olddefconfig
 
