@@ -28,6 +28,8 @@ jobs:
         run: |
           # Fix broken upstream include: angle brackets omit current source dir.
           sed -i 's|#include <../base/base.h>|#include "../base/base.h"|' drivers/thermal/thermal_core.c
+          # Disable techpack/audio build (not gated by CONFIG_SND)
+          sed -i 's|^obj-y.*techpack/audio|#&|' Makefile
           # Old vendor makefiles force -Werror; GCC 11 finds legacy warnings.
           # Use word-boundary sed to avoid mangling -Werror-implicit-function-declaration into broken flag
           find . -type f \( -name Makefile -o -name Kbuild \) -exec sed -i \
@@ -47,6 +49,8 @@ jobs:
           scripts/config --disable CONFIG_SOUND
           scripts/config --disable CONFIG_SND
           scripts/config --disable CONFIG_SND_SOC
+          scripts/config --disable CONFIG_TOUCHSCREEN_NT36XXX_SPI
+          scripts/config --disable CONFIG_TOUCHSCREEN_NT36XXX_I2C
           # Accept defaults for any newer Kconfig symbols without interactive prompts.
           make ARCH=arm64 olddefconfig
 
