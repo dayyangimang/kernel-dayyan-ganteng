@@ -41,6 +41,8 @@ jobs:
           scripts/config --disable CONFIG_LTO_CLANG
           scripts/config --disable CONFIG_THINLTO
           scripts/config --disable CONFIG_LLVM_POLLY
+          scripts/config --disable CONFIG_MEDIA_SUPPORT
+          scripts/config --disable CONFIG_MSM_CAMERA
           # Accept defaults for any newer Kconfig symbols without interactive prompts.
           make ARCH=arm64 olddefconfig
 
