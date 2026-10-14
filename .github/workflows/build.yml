@@ -29,7 +29,11 @@ jobs:
           # Fix broken upstream include: angle brackets omit current source dir.
           sed -i 's|#include <../base/base.h>|#include "../base/base.h"|' drivers/thermal/thermal_core.c
           # Old vendor makefiles force -Werror; GCC 11 finds legacy warnings.
-          find . -type f \( -name Makefile -o -name Kbuild \) -exec sed -i 's/-Werror//g' {} +
+          # Use word-boundary sed to avoid mangling -Werror-implicit-function-declaration into broken flag
+          find . -type f \( -name Makefile -o -name Kbuild \) -exec sed -i \
+            -e 's/-Werror-implicit-function-declaration/-Wimplicit-function-declaration/g' \
+            -e 's/-Werror[[:space:]]/ /g' \
+            -e 's/-Werror$//g' {} +
           make ARCH=arm64 vendor/ginkgo-perf_defconfig
           scripts/config --disable CONFIG_WERROR
           scripts/config --disable CONFIG_DEBUG_INFO
