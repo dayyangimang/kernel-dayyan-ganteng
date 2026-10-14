@@ -43,6 +43,10 @@ jobs:
           scripts/config --disable CONFIG_LLVM_POLLY
           scripts/config --disable CONFIG_MEDIA_SUPPORT
           scripts/config --disable CONFIG_MSM_CAMERA
+          scripts/config --disable CONFIG_DRM_MSM
+          scripts/config --disable CONFIG_SOUND
+          scripts/config --disable CONFIG_SND
+          scripts/config --disable CONFIG_SND_SOC
           # Accept defaults for any newer Kconfig symbols without interactive prompts.
           make ARCH=arm64 olddefconfig
 
