@@ -38,6 +38,9 @@ jobs:
           scripts/config --disable CONFIG_WERROR
           scripts/config --disable CONFIG_DEBUG_INFO
           scripts/config --disable CONFIG_CC_STACKPROTECTOR_STRONG
+          scripts/config --disable CONFIG_LTO_CLANG
+          scripts/config --disable CONFIG_THINLTO
+          scripts/config --disable CONFIG_LLVM_POLLY
           # Accept defaults for any newer Kconfig symbols without interactive prompts.
           make ARCH=arm64 olddefconfig
 
