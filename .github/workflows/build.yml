@@ -30,13 +30,19 @@ jobs:
           sed -i 's|#include <../base/base.h>|#include "../base/base.h"|' drivers/thermal/thermal_core.c
           # Disable techpack/ subsystem (line 603) — not gated by Kconfig
           sed -i 's|^drivers-y.*:= drivers/ sound/ firmware/ techpack/$|drivers-y	:= drivers/ sound/ firmware/|' Makefile
-          # MSM_DRM is disabled below; exclude only the Novatek driver that requires it.
-          sed -i '/nt36xxx_spi_c3j/s/^/#/' drivers/input/touchscreen/Makefile
-          if grep -qE '^[[:space:]]*obj-.*nt36xxx_spi_c3j' drivers/input/touchscreen/Makefile; then
-            echo "Failed to disable nt36xxx_spi_c3j"
-            exit 1
-          fi
+          # Stub out mm/compaction.c msm_drm call (unconditional, but DRM is disabled)
+          sed -i '/msm_drm_register_client.*compaction_notifier_block/s/^/\/\//' mm/compaction.c
+          # Disable all touchscreen drivers (depend on MSM_DRM or vendor symbols)
+          sed -i -E '/nt36xxx_spi_c3j|ft8719_spi_c3j/s/^/#/' drivers/input/touchscreen/Makefile
+          # Disable fingerprint drivers (depend on MSM_DRM notifier)
+          sed -i -E 's|^obj-\$\(CONFIG_(FINGERPRINT_FPC1020\|FINGERPRINT_GF3208)|#&|' drivers/input/fingerprint/Makefile
+          # Disable btfm_slim (bluetooth FM — depends on snd_soc which is disabled)
+          sed -i 's|^obj-\$(CONFIG_BTFM_SLIM)|#&|g' drivers/bluetooth/Makefile
+          # Verify critical exclusions
           grep -n 'nt36xxx_spi_c3j\|ft8719_spi_c3j' drivers/input/touchscreen/Makefile
+          grep -n 'FINGERPRINT' drivers/input/fingerprint/Makefile
+          grep -n 'BTFM_SLIM' drivers/bluetooth/Makefile
+          grep -n 'msm_drm_register_client' mm/compaction.c
           # Old vendor makefiles force -Werror; GCC 11 finds legacy warnings.
           # Use word-boundary sed to avoid mangling -Werror-implicit-function-declaration into broken flag
           find . -type f \( -name Makefile -o -name Kbuild \) -exec sed -i \
@@ -57,8 +63,14 @@ jobs:
           scripts/config --disable CONFIG_SND
           scripts/config --disable CONFIG_SND_SOC
           scripts/config --disable CONFIG_TOUCHSCREEN_NT36xxx_HOSTDL_SPI_C3J
-          scripts/config --disable CONFIG_TOUCHSCREEN_NT36XXX_SPI
-          scripts/config --disable CONFIG_TOUCHSCREEN_NT36XXX_I2C
+          scripts/config --disable CONFIG_TOUCHSCREEN_XIAOMI_C3J
+          scripts/config --disable CONFIG_TOUCHSCREEN_FTS_C3J
+          scripts/config --disable CONFIG_FINGERPRINT_FPC1020
+          scripts/config --disable CONFIG_FINGERPRINT_GF3208
+          scripts/config --disable CONFIG_INPUT_FINGERPRINT
+          scripts/config --disable CONFIG_BTFM_SLIM
+          scripts/config --disable CONFIG_BTFM_SLIM_WCN3990
+          scripts/config --disable CONFIG_QCOM_MDSS_PLL
           # Accept defaults for any newer Kconfig symbols without interactive prompts.
           make ARCH=arm64 olddefconfig
 
