@@ -28,8 +28,8 @@ jobs:
         run: |
           # Fix broken upstream include: angle brackets omit current source dir.
           sed -i 's|#include <../base/base.h>|#include "../base/base.h"|' drivers/thermal/thermal_core.c
-          # Disable techpack/audio build (not gated by CONFIG_SND)
-          sed -i 's|^obj-y.*techpack/audio|#&|' Makefile
+          # Disable techpack/ subsystem (line 603) — not gated by Kconfig
+          sed -i 's|^drivers-y.*:= drivers/ sound/ firmware/ techpack/$|drivers-y	:= drivers/ sound/ firmware/|' Makefile
           # Old vendor makefiles force -Werror; GCC 11 finds legacy warnings.
           # Use word-boundary sed to avoid mangling -Werror-implicit-function-declaration into broken flag
           find . -type f \( -name Makefile -o -name Kbuild \) -exec sed -i \
