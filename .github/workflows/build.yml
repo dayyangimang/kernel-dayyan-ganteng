@@ -30,8 +30,13 @@ jobs:
           sed -i 's|#include <../base/base.h>|#include "../base/base.h"|' drivers/thermal/thermal_core.c
           # Disable techpack/ subsystem (line 603) — not gated by Kconfig
           sed -i 's|^drivers-y.*:= drivers/ sound/ firmware/ techpack/$|drivers-y	:= drivers/ sound/ firmware/|' Makefile
-          # Disable nt36xxx touchscreen drivers (depend on MSM_DRM)
-          sed -i 's|^obj-\$(CONFIG_TOUCHSCREEN_NT36XXX|#&|' drivers/input/touchscreen/Makefile
+          # MSM_DRM is disabled below; exclude only the Novatek driver that requires it.
+          sed -i '/nt36xxx_spi_c3j/s/^/#/' drivers/input/touchscreen/Makefile
+          if grep -qE '^[[:space:]]*obj-.*nt36xxx_spi_c3j' drivers/input/touchscreen/Makefile; then
+            echo "Failed to disable nt36xxx_spi_c3j"
+            exit 1
+          fi
+          grep -n 'nt36xxx_spi_c3j\|ft8719_spi_c3j' drivers/input/touchscreen/Makefile
           # Old vendor makefiles force -Werror; GCC 11 finds legacy warnings.
           # Use word-boundary sed to avoid mangling -Werror-implicit-function-declaration into broken flag
           find . -type f \( -name Makefile -o -name Kbuild \) -exec sed -i \
@@ -51,6 +56,7 @@ jobs:
           scripts/config --disable CONFIG_SOUND
           scripts/config --disable CONFIG_SND
           scripts/config --disable CONFIG_SND_SOC
+          scripts/config --disable CONFIG_TOUCHSCREEN_NT36xxx_HOSTDL_SPI_C3J
           scripts/config --disable CONFIG_TOUCHSCREEN_NT36XXX_SPI
           scripts/config --disable CONFIG_TOUCHSCREEN_NT36XXX_I2C
           # Accept defaults for any newer Kconfig symbols without interactive prompts.
