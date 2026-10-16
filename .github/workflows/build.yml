@@ -30,6 +30,8 @@ jobs:
           sed -i 's|#include <../base/base.h>|#include "../base/base.h"|' drivers/thermal/thermal_core.c
           # Disable techpack/ subsystem (line 603) — not gated by Kconfig
           sed -i 's|^drivers-y.*:= drivers/ sound/ firmware/ techpack/$|drivers-y	:= drivers/ sound/ firmware/|' Makefile
+          # Disable nt36xxx touchscreen drivers (depend on MSM_DRM)
+          sed -i 's|^obj-\$(CONFIG_TOUCHSCREEN_NT36XXX|#&|' drivers/input/touchscreen/Makefile
           # Old vendor makefiles force -Werror; GCC 11 finds legacy warnings.
           # Use word-boundary sed to avoid mangling -Werror-implicit-function-declaration into broken flag
           find . -type f \( -name Makefile -o -name Kbuild \) -exec sed -i \
