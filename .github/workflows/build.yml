@@ -75,6 +75,9 @@ jobs:
           scripts/config --disable CONFIG_BTFM_SLIM_WCN3990
           scripts/config --disable CONFIG_QCOM_MDSS_PLL
           scripts/config --enable CONFIG_MSM_DRM_NOTIFY
+          scripts/config --disable CONFIG_MAGIC_SYSRQ
+          scripts/config --disable CONFIG_QPNP_SMB5
+          scripts/config --disable CONFIG_DEVFREQ_BOOST
           # Accept defaults for any newer Kconfig symbols without interactive prompts.
           make ARCH=arm64 olddefconfig
 
