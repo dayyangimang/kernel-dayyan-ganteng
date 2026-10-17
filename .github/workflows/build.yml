@@ -32,6 +32,9 @@ jobs:
           sed -i 's|^drivers-y.*:= drivers/ sound/ firmware/ techpack/$|drivers-y	:= drivers/ sound/ firmware/|' Makefile
           # Stub out mm/compaction.c msm_drm call (unconditional, but DRM is disabled)
           sed -i '/msm_drm_register_client.*compaction_notifier_block/s/^/\/\//' mm/compaction.c
+          # Stub msm_drm_notifier_enable (defined in msm_atomic.c which is gone with DRM_MSM)
+          # sysrq.c uses extern — add a no-op to msm_drm_notify.c
+          printf '\nvoid msm_drm_notifier_enable(bool val)\n{\n}\nEXPORT_SYMBOL(msm_drm_notifier_enable);\n' >> drivers/soc/qcom/msm_drm_notify.c
           # Disable all touchscreen drivers (depend on MSM_DRM or vendor symbols)
           sed -i -E '/nt36xxx_spi_c3j|ft8719_spi_c3j/s/^/#/' drivers/input/touchscreen/Makefile
           # Disable fingerprint drivers (depend on MSM_DRM notifier)
@@ -71,6 +74,7 @@ jobs:
           scripts/config --disable CONFIG_BTFM_SLIM
           scripts/config --disable CONFIG_BTFM_SLIM_WCN3990
           scripts/config --disable CONFIG_QCOM_MDSS_PLL
+          scripts/config --enable CONFIG_MSM_DRM_NOTIFY
           # Accept defaults for any newer Kconfig symbols without interactive prompts.
           make ARCH=arm64 olddefconfig
 
